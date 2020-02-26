@@ -59,14 +59,13 @@ namespace RSlackCleaner.Areas.Main
             SetAppStatus(true, IsSearchEnabled, IsDeleteMessagesEnabled);
 
             SlackService slackService = new SlackService(userToken);
-            await slackService.test();
-            //for (int i = 0; i < Channels.Count; i++)
-            //{
-            //    if (Channels[i].IsChecked)
-            //    {
-            //        await slackService.DeleteMessagesFromChannel(Channels[i], SelectedDate);
-            //    }
-            //}
+            for (int i = 0; i < Channels.Count; i++)
+            {
+                if (Channels[i].IsChecked)
+                {
+                    await slackService.DeleteMessagesFromChannel(Channels[i], SelectedDate);
+                }
+            }
 
             SetAppStatus(false, IsSearchEnabled, IsDeleteMessagesEnabled);
 
@@ -78,7 +77,6 @@ namespace RSlackCleaner.Areas.Main
             SetAppStatus(true, IsSearchEnabled, IsDeleteMessagesEnabled);
 
             SlackService slackService = new SlackService(UserToken);
-            //await slackService.test();
             Channels = await slackService.GetChannels(SelectedDate);
 
             SetAppStatus(false, IsSearchEnabled, IsDeleteMessagesEnabled);
