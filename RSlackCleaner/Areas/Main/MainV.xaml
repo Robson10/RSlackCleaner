@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:RSlackCleaner.Areas.Main"
         mc:Ignorable="d"
-        Title="MainV" MinHeight="300" Height="510" Width="650" MinWidth="650">
+        Title="MainV" MinHeight="300" Height="510" Width="850" MinWidth="850">
     <Window.DataContext>
         <local:MainVM/>
     </Window.DataContext>
@@ -24,8 +24,8 @@
         </Style>
         <Style x:Key="ChannelsGroupbox" TargetType="GroupBox">
             <Setter Property="MaxHeight" Value="400"/>
-            <Setter Property="Width" Value="190"/>
-            <Setter Property="MaxWidth" Value="190"/>
+            <Setter Property="Width" Value="250"/>
+            <Setter Property="MaxWidth" Value="250"/>
         </Style>
     </Window.Resources>
     <DockPanel>

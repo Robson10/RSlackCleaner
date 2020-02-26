@@ -56,21 +56,32 @@ namespace RSlackCleaner.Areas.Main
 
         private async void DeleteMessages()
         {
-            IsSearchEnabled = false;
-            IsDeleteMessagesEnabled = false;
-            Mouse.OverrideCursor = Cursors.Wait;
+            SetAppStatus(true, IsSearchEnabled, IsDeleteMessagesEnabled);
+
             SlackService slackService = new SlackService(userToken);
-            for (int i = 0; i < Channels.Count; i++)
-            {
-                if (Channels[i].IsChecked)
-                {
-                    await slackService.DeleteMessagesFromChannel(Channels[i], SelectedDate);
-                }
-            }
-            Mouse.OverrideCursor = null;
-            IsDeleteMessagesEnabled = true;
-            IsSearchEnabled = true;
+            await slackService.test();
+            //for (int i = 0; i < Channels.Count; i++)
+            //{
+            //    if (Channels[i].IsChecked)
+            //    {
+            //        await slackService.DeleteMessagesFromChannel(Channels[i], SelectedDate);
+            //    }
+            //}
+
+            SetAppStatus(false, IsSearchEnabled, IsDeleteMessagesEnabled);
+
             SearchMessagesOnChannels();
+        }
+
+        public async void SearchMessagesOnChannels()
+        {
+            SetAppStatus(true, IsSearchEnabled, IsDeleteMessagesEnabled);
+
+            SlackService slackService = new SlackService(UserToken);
+            //await slackService.test();
+            Channels = await slackService.GetChannels(SelectedDate);
+
+            SetAppStatus(false, IsSearchEnabled, IsDeleteMessagesEnabled);
         }
 
         private void RedirectToGenerateToken()
@@ -95,16 +106,15 @@ namespace RSlackCleaner.Areas.Main
             }
         }
 
-        public async void SearchMessagesOnChannels()
+        public void SetAppStatus(bool isLoading, params bool[] buttonsEnabledProperty)
         {
-            IsSearchEnabled = false;
-            IsDeleteMessagesEnabled = false;
-            Mouse.OverrideCursor = Cursors.Wait;
-            SlackService slackService = new SlackService(UserToken);
-            Channels = await slackService.GetChannels(SelectedDate);
-            Mouse.OverrideCursor = null;
-            IsSearchEnabled = true;
-            IsDeleteMessagesEnabled = true;
+            for (int i = 0; i < buttonsEnabledProperty.Count(); i++)
+            {
+                buttonsEnabledProperty[i] = !isLoading;
+            }
+
+            Mouse.OverrideCursor = isLoading ? Cursors.Wait : null;
         }
+
     }
 }
