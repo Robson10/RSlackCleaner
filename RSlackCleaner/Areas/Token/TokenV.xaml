@@ -1,0 +1,43 @@
+﻿<Window x:Class="RSlackCleaner.Areas.Token.TokenV"
+        x:Name="Window"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:RSlackCleaner.Areas.Token"
+        WindowStartupLocation="CenterOwner"
+        mc:Ignorable="d"
+        Title="TokenV" 
+        MinHeight="190" Height="190" 
+        MinWidth="300" Width="300">
+    <Window.DataContext>
+        <local:TokenVM/>
+    </Window.DataContext>
+    <Window.Resources>
+        <Style TargetType="Button">
+            <Setter Property="Width" Value="80"/>
+            <Setter Property="Margin" Value="10"/>
+            <Setter Property="Height" Value="25"/>
+        </Style>
+    </Window.Resources>
+    <StackPanel>
+        <StackPanel Margin="10">
+        <TextBlock TextWrapping="Wrap" TextAlignment="Center">
+            Wprowadź token wymagany do działania aplikacji lub go
+            <Hyperlink NavigateUri="https://api.slack.com/legacy/custom-integrations/legacy-tokens" Command="{Binding GenerateTokenCmd}"  >
+                <TextBlock Text="wygeneruj"/>
+            </Hyperlink>.            
+        </TextBlock>
+        </StackPanel>
+        <StackPanel VerticalAlignment="Center" Orientation="Horizontal" Margin="0,10,0,10" HorizontalAlignment="Center">
+            <Label Content="Token:" />
+            <TextBox Width="200" Text="{Binding UserToken,UpdateSourceTrigger=PropertyChanged}" VerticalContentAlignment="Center" VerticalAlignment="Center"/>
+            <TextBlock VerticalAlignment="Center">
+        </TextBlock>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+            <Button Content="Ok" Command="{Binding OkCmd}" CommandParameter="{Binding ElementName=Window}" />
+            <Button Content="Anuluj" Command="{Binding CloseCmd}" CommandParameter="{Binding ElementName=Window}" />
+        </StackPanel>
+    </StackPanel>
+</Window>

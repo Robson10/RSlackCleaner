@@ -1,5 +1,6 @@
 ﻿using Prism.Commands;
 using Prism.Mvvm;
+using RSlackCleaner.Areas.Token;
 using RSlackCleaner.Services.Slack;
 using RSlackCleaner.Services.Slack.Models;
 using System;
@@ -7,6 +8,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 
@@ -14,8 +16,7 @@ namespace RSlackCleaner.Areas.Main
 {
     public class MainVM : BindableBase
     {
-        private string userToken;
-        public string UserToken { get => userToken; set => SetProperty(ref userToken, value); }
+        public string UserToken;
 
         private DateTime selectedDate = DateTime.Now.AddDays(-7);
         public DateTime SelectedDate { get => selectedDate; set => SetProperty(ref selectedDate, value); }
@@ -45,20 +46,36 @@ namespace RSlackCleaner.Areas.Main
 
         public DelegateCommand SearchCmd { get; set; }
         public DelegateCommand DeleteMessagesCmd { get; set; }
-        public DelegateCommand GenerateTokenCmd { get; set; }
+        public DelegateCommand ReadUserTokenCmd { get; set; }
 
         public MainVM()
         {
             SearchCmd = new DelegateCommand(SearchMessagesOnChannels);
             DeleteMessagesCmd = new DelegateCommand(DeleteMessages);
-            GenerateTokenCmd = new DelegateCommand(RedirectToGenerateToken);
+            ReadUserTokenCmd = new DelegateCommand(ReadUserToken);
+        }
+
+        private void ReadUserToken()
+        {
+            TokenV tokenV = new TokenV();
+            if (tokenV.ShowDialog() == true)
+            {
+                if (tokenV.DataContext is TokenVM tokenVm)
+                {
+                    UserToken = tokenVm.UserToken;
+                }
+            }
+            else
+            {
+                App.Current.Shutdown();
+            }
         }
 
         private async void DeleteMessages()
         {
-            SetAppStatus(true, IsSearchEnabled, IsDeleteMessagesEnabled);
+            SetAppStatus(true);
 
-            SlackService slackService = new SlackService(userToken);
+            SlackService slackService = new SlackService(UserToken);
             for (int i = 0; i < Channels.Count; i++)
             {
                 if (Channels[i].IsChecked)
@@ -67,49 +84,27 @@ namespace RSlackCleaner.Areas.Main
                 }
             }
 
-            SetAppStatus(false, IsSearchEnabled, IsDeleteMessagesEnabled);
+            SetAppStatus(false);
 
             SearchMessagesOnChannels();
         }
 
         public async void SearchMessagesOnChannels()
         {
-            SetAppStatus(true, IsSearchEnabled, IsDeleteMessagesEnabled);
+            SetAppStatus(true);
 
             SlackService slackService = new SlackService(UserToken);
             Channels = await slackService.GetChannels(SelectedDate);
 
-            SetAppStatus(false, IsSearchEnabled, IsDeleteMessagesEnabled);
+            SetAppStatus(false);
         }
 
-        private void RedirectToGenerateToken()
-        {
-            string url = "https://api.slack.com/legacy/custom-integrations/legacy-tokens";
 
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); // Works ok on windows
-            }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            {
-                Process.Start("xdg-open", url);  // Works ok on linux
-            }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                Process.Start("open", url); // Not tested
-            }
-            else
-            {
-                MessageBox.Show("Nie udało się uruchomić następującego adresu w przeglądarce:" + Environment.NewLine + url, "", MessageBoxButton.OK);
-            }
-        }
 
-        public void SetAppStatus(bool isLoading, params bool[] buttonsEnabledProperty)
+        public void SetAppStatus(bool isLoading)
         {
-            for (int i = 0; i < buttonsEnabledProperty.Count(); i++)
-            {
-                buttonsEnabledProperty[i] = !isLoading;
-            }
+            IsSearchEnabled = !isLoading;
+            IsDeleteMessagesEnabled = !isLoading;
 
             Mouse.OverrideCursor = isLoading ? Cursors.Wait : null;
         }
