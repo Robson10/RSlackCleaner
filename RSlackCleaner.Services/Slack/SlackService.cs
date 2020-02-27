@@ -64,7 +64,7 @@ namespace RSlackCleaner.Services.Slack
                     IsChecked = false,
                     ChannelType = Models.ChannelType.DirectMessage,
                     ChannelId = item.id,
-                    Name = slackUsers.FirstOrDefault(x=>!string.IsNullOrEmpty(x.id) && x.id.Equals(item.user))?.profile?.real_name ?? item.user,// users.FirstOrDefault(y => item.user.Equals(y.Id))?.Name ?? item.user,
+                    Name = slackUsers.FirstOrDefault(x => !string.IsNullOrEmpty(x.id) && x.id.Equals(item.user))?.profile?.real_name ?? item.user,// users.FirstOrDefault(y => item.user.Equals(y.Id))?.Name ?? item.user,
                     MessagesCount = messageCount
                 });
             }
@@ -155,15 +155,21 @@ namespace RSlackCleaner.Services.Slack
             {
                 return;
             }
-
+            int deleteInterval = 300;
             string tokenUserId = await GetTokenUserId();
 
             foreach (Message item in messageHistories)
             {
                 if (string.IsNullOrEmpty(item.user) || item.user.Equals(tokenUserId))
                 {
-                    await SlackClient.DeleteMessageAsync(channelId, item.ts);
-                    Thread.Sleep(500);
+                    DeletedResponse response;
+                    int attempts = 3;
+                    do
+                    {
+                        response = await SlackClient.DeleteMessageAsync(channelId, item.ts);
+                        attempts--;
+                    } while ((response != null && !response.ok) && response.error.Equals("ratelimited"));
+                    Thread.Sleep(deleteInterval);
                 }
             }
         }
@@ -193,8 +199,8 @@ namespace RSlackCleaner.Services.Slack
 
                 if (slackMessages != null && slackMessages.messages != null)
                 {
-                    allMessageCount += slackMessages.messages.Count(x=> string.IsNullOrEmpty(x.subtype) || !x.subtype.Equals("group_join"));
-                    userMessageCount += slackMessages.messages.Count(x => (string.IsNullOrEmpty(tokenUserId) || string.IsNullOrEmpty(x.user) || x.user.Equals(tokenUserId))&& (string.IsNullOrEmpty(x.subtype) || !x.subtype.Equals("group_join")));
+                    allMessageCount += slackMessages.messages.Count(x => string.IsNullOrEmpty(x.subtype) || !x.subtype.Equals("group_join"));
+                    userMessageCount += slackMessages.messages.Count(x => (string.IsNullOrEmpty(tokenUserId) || string.IsNullOrEmpty(x.user) || x.user.Equals(tokenUserId)) && (string.IsNullOrEmpty(x.subtype) || !x.subtype.Equals("group_join")));
                 }
 
                 if (slackMessages.messages.Count() >= 1000)
