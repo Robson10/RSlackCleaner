@@ -8,9 +8,11 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Threading;
 
 namespace RSlackCleaner.Areas.Main
 {
@@ -28,6 +30,7 @@ namespace RSlackCleaner.Areas.Main
         public bool IsDeleteMessagesEnabled { get => isDeleteMessagesEnabled; set => SetProperty(ref isDeleteMessagesEnabled, value); }
 
         private List<Channel> channels;
+
         public List<Channel> Channels
         {
             get => channels;
@@ -43,6 +46,16 @@ namespace RSlackCleaner.Areas.Main
         public List<Channel> PrivateChannels { get => channels?.Where(x => x.ChannelType == ChannelType.Private).ToList(); set => SetProperty(ref channels, value); }
         public List<Channel> PublicChannels { get => channels?.Where(x => x.ChannelType == ChannelType.Public).ToList(); set => SetProperty(ref channels, value); }
         public List<Channel> DirectMessageChannels { get => channels?.Where(x => x.ChannelType == ChannelType.DirectMessage).ToList(); set => SetProperty(ref channels, value); }
+
+        private long messagesDeleted;
+        public long MessagesDeleted { get => messagesDeleted; set => SetProperty(ref messagesDeleted, value); }
+
+        private long messagesCount;
+        public long MessagesCount { get => messagesCount; set => SetProperty(ref messagesCount, value); }
+
+
+        private Visibility progressBarVisibility = Visibility.Hidden;
+        public Visibility ProgressBarVisibility { get => progressBarVisibility; set => SetProperty(ref progressBarVisibility, value); }
 
         public DelegateCommand SearchCmd { get; set; }
         public DelegateCommand DeleteMessagesCmd { get; set; }
@@ -74,15 +87,12 @@ namespace RSlackCleaner.Areas.Main
         private async void DeleteMessages()
         {
             SetAppStatus(true);
+            ProgressBarVisibility = Visibility.Visible;
+            MessagesDeleted = 0;
+            MessagesCount = Channels.Where(x => x.IsChecked).Sum(x => x.UserMessages);
 
             SlackService slackService = new SlackService(UserToken);
-            for (int i = 0; i < Channels.Count; i++)
-            {
-                if (Channels[i].IsChecked)
-                {
-                    await slackService.DeleteMessagesFromChannel(Channels[i], SelectedDate);
-                }
-            }
+            await slackService.DeleteMessagesFromChannel(Channels.Where(x => x.IsChecked).ToArray(), SelectedDate);
 
             SetAppStatus(false);
 

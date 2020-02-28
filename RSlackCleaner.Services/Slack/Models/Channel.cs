@@ -1,4 +1,8 @@
-﻿namespace RSlackCleaner.Services.Slack.Models
+﻿using SlackAPI;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace RSlackCleaner.Services.Slack.Models
 {
     public class Channel
     {
@@ -6,6 +10,20 @@
         public string ChannelId { get; set; }
         public ChannelType ChannelType { get; set; }
         public bool IsChecked { get; set; }
-        public string MessagesCount { get; set; }
+        public List<Message> Messages { get; set; }
+        public long UserMessages { get; set; }
+        public long MessagesCount { get; set; }
+
+        public Channel(string name, string channelId, ChannelType channelType, bool isChecked, List<Message> messages, long userMessages, long messagesCount)
+        {
+            Name = name;
+            ChannelId = channelId;
+            ChannelType = channelType;
+            IsChecked = isChecked;
+            Messages = messages;
+            UserMessages = userMessages;
+            MessagesCount = messagesCount;
+        }
+
     }
 }
