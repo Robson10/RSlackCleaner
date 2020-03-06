@@ -5,8 +5,9 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:RSlackCleaner.Areas.Main"
         xmlns:i="http://schemas.microsoft.com/expression/2010/interactivity"
-        mc:Ignorable="d"
-        Title="MainV" MinHeight="420" Height="390" Width="850" MinWidth="850">
+        xmlns:localization="clr-namespace:RSlackCleaner.Resources.Localization;assembly=RSlackCleaner.Resources"
+        mc:Ignorable="d" 
+        Title="{x:Static localization:res.TitleApplicationName}" MinHeight="420" Height="390" Width="850" MinWidth="850">
     <i:Interaction.Triggers>
         <i:EventTrigger EventName="Loaded">
             <i:InvokeCommandAction Command="{Binding ReadUserTokenCmd}" />
@@ -34,7 +35,7 @@
                                                 HorizontalAlignment="Right">
                                             <TextBlock.Text>
                                                 <MultiBinding StringFormat="{}{0}/{1}">
-                                                    <Binding Path="UserMessages" />
+                                                    <Binding Path="UserMessagesCount" />
                                                     <Binding Path="MessagesCount" />
                                                 </MultiBinding>
                                             </TextBlock.Text>
@@ -63,12 +64,19 @@
     </Window.Resources>
     <DockPanel>
         <StackPanel DockPanel.Dock="Top" Margin="10" HorizontalAlignment="Center">
-
             <StackPanel Orientation="Horizontal">
-                <Label Content="Szukaj wiadomości starszych niż:"/>
-                <DatePicker HorizontalAlignment="Center" SelectedDate="{Binding SelectedDate}"/>
-                <Button Content="Szukaj" Margin="20,0,0,0" Padding="10,0,10,0" Command="{Binding SearchCmd}" IsEnabled="{Binding IsSearchEnabled}"/>
-                <Button Content="Usuń znalezione wiadomości" Margin="20,0,0,0" Padding="10,0,10,0" Command="{Binding DeleteMessagesCmd}" IsEnabled="{Binding IsDeleteMessagesEnabled}"/>
+                <Label Content="{x:Static localization:res.lblSearchMessagesOlderThan}" VerticalAlignment="Top"/>
+                <DatePicker HorizontalAlignment="Center" SelectedDate="{Binding SelectedDate}" VerticalAlignment="Top"/>
+                <Button Content="{x:Static localization:res.btnSearch}" Margin="20,0,0,0" Padding="10,5,10,5" Command="{Binding SearchCmd}" IsEnabled="{Binding IsSearchEnabled}" VerticalAlignment="Top"/>
+                <Button Content="{x:Static localization:res.btnDeleteMessages}" Margin="20,0,0,0" Padding="10,5,10,5" Command="{Binding DeleteMessagesCmd}" IsEnabled="{Binding IsDeleteMessagesEnabled}" VerticalAlignment="Top"/>
+                <Label Content="Po zakończeniu:"/>
+                <StackPanel>
+                    <CheckBox Content="Zamknij aplikację" IsChecked="{Binding CloseApplicationAfterDeleteAll}"/>
+                    <CheckBox Content="Wyłącz komputer" IsChecked="{Binding ShutDownPcAfterDeleteAll}"/>
+                </StackPanel>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Background="AliceBlue" HorizontalAlignment="Right">
+                
             </StackPanel>
         </StackPanel>
         <Grid DockPanel.Dock="Top" HorizontalAlignment="Stretch" VerticalAlignment="Top">
@@ -78,20 +86,59 @@
                 <ColumnDefinition Width="1*"/>
             </Grid.ColumnDefinitions>
 
-            <GroupBox Grid.Column="0" Header="Publiczne kanały" Style="{StaticResource ChannelsGroupbox}" HorizontalContentAlignment="Stretch" >
+            <GroupBox Grid.Column="0" Style="{StaticResource ChannelsGroupbox}" HorizontalContentAlignment="Stretch" >
+                <GroupBox.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <Label>
+                            <AccessText>
+                                <MultiBinding StringFormat="{}{0} {1}/{2}">
+                                    <Binding Source="{x:Static localization:res.gboxPublicChannels}" />
+                                    <Binding Path="PublicChannelsUserMessagesCount" />
+                                    <Binding Path="PublicChannelsMessagesCount" />
+                                </MultiBinding>
+                            </AccessText>
+                        </Label>
+                    </StackPanel>
+                </GroupBox.Header>
                 <ListBox ItemsSource="{Binding PublicChannels}"  Style="{StaticResource ChannelList}"/>
             </GroupBox>
 
-            <GroupBox Grid.Column="1" Header="Prywatne kanały" Style="{StaticResource ChannelsGroupbox}">
+            <GroupBox Grid.Column="1" Style="{StaticResource ChannelsGroupbox}">
+                <GroupBox.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <Label>
+                            <AccessText>
+                                <MultiBinding StringFormat="{}{0} {1}/{2}">
+                                    <Binding Source="{x:Static localization:res.gboxPrivateChannels}" />
+                                    <Binding Path="PrivateChannelsUserMessagesCount" />
+                                    <Binding Path="PrivateChannelsMessagesCount" />
+                                </MultiBinding>
+                            </AccessText>
+                        </Label>
+                    </StackPanel>
+                </GroupBox.Header>
                 <ListBox ItemsSource="{Binding PrivateChannels}" Style="{StaticResource ChannelList}"/>
             </GroupBox>
 
-            <GroupBox Grid.Column="2" Header="Prywatne wiadomości" Style="{StaticResource ChannelsGroupbox}">
+            <GroupBox Grid.Column="2" Style="{StaticResource ChannelsGroupbox}">
+                <GroupBox.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <Label>
+                            <AccessText>
+                                <MultiBinding StringFormat="{}{0} {1}/{2}">
+                                    <Binding Source="{x:Static localization:res.gboxPrivateMessages}" />
+                                    <Binding Path="PrivateMessagesUserMessagesCount" />
+                                    <Binding Path="PrivateMessagesMessagesCount" />
+                                </MultiBinding>
+                            </AccessText>
+                        </Label>
+                    </StackPanel>
+                </GroupBox.Header>
                 <ListBox ItemsSource="{Binding DirectMessageChannels}" Style="{StaticResource ChannelList}"/>
             </GroupBox>
         </Grid>
         <Grid DockPanel.Dock="Bottom" VerticalAlignment="Bottom" Margin="10" Height="30">
-            <ProgressBar Value="{Binding MessagesDeleted}" Maximum="{Binding MessagesCount}" Visibility="{Binding ProgressBarVisibility}"/>
+            <ProgressBar Value="{Binding MessagesDeleted,UpdateSourceTrigger=PropertyChanged}" Maximum="{Binding MessagesCount}" Visibility="{Binding ProgressBarVisibility}"/>
             <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding ProgressBarVisibility}">
                 <TextBlock.Text>
                     <MultiBinding StringFormat="{}{0}/{1}">

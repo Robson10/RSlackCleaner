@@ -1,4 +1,5 @@
-﻿using SlackAPI;
+﻿using RSlackCleaner.Resources.Configuration;
+using SlackAPI;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,15 +11,22 @@ namespace RSlackCleaner.Services.Slack
     public class SlackService
     {
         private readonly SlackTaskClient SlackClient;
+        private readonly string UserIdOfToken;
 
-        public Action<long> MessageDeleted;
+        public Action MessageDeleted;
 
         public SlackService(string token)
         {
+
             SlackClient = new SlackTaskClient(token);
+
+            Task<string> task = Task.Run(GetTokenUserId);
+            task.Wait();
+            UserIdOfToken = task.Result;
         }
 
-        public async static Task<bool> VerifyToken(string userToken)
+
+        public static async Task<bool> VerifyToken(string userToken)
         {
             SlackTaskClient slackTaskClient = new SlackTaskClient(userToken);
             LoginResponse response = await slackTaskClient.ConnectAsync();
@@ -40,11 +48,11 @@ namespace RSlackCleaner.Services.Slack
             }).ToList();
         }
 
-        
+
         public async Task<List<Models.Channel>> GetChannels(DateTime messagesOlderThan)
         {
             List<Models.Channel> ChannelList = new List<Models.Channel>();
-            var res = await SlackClient.ConnectAsync();
+            LoginResponse res = await SlackClient.ConnectAsync();
 
             ChannelList.AddRange(await GetPrivateChannels(res.groups, messagesOlderThan));
             ChannelList.AddRange(await GetPublicChannels(res.channels, messagesOlderThan));
@@ -59,7 +67,7 @@ namespace RSlackCleaner.Services.Slack
             List<Models.Channel> channels = new List<Models.Channel>();
             foreach (DirectMessageConversation item in ims)
             {
-                var (userMessages, messageCount, messages) = await GetMessages(item.id, Models.ChannelType.DirectMessage, messagesOlderThan);
+                (long userMessages, long messageCount, List<Message> messages) = await GetMessages(item.id, Models.ChannelType.DirectMessage, messagesOlderThan);
 
                 channels.Add(new Models.Channel(
                     name: slackUsers.FirstOrDefault(x => !string.IsNullOrEmpty(x.id) && x.id.Equals(item.user))?.profile?.real_name ?? item.user,// users.FirstOrDefault(y => item.user.Equals(y.Id))?.Name ?? item.user,
@@ -67,7 +75,7 @@ namespace RSlackCleaner.Services.Slack
                     channelType: Models.ChannelType.DirectMessage,
                     isChecked: false,
                     messages: messages,
-                    userMessages: userMessages,
+                    userMessagesCount: userMessages,
                     messagesCount: messageCount
                     ));
             }
@@ -80,7 +88,7 @@ namespace RSlackCleaner.Services.Slack
             List<Models.Channel> publicChannels = new List<Models.Channel>();
             foreach (Channel item in channels)
             {
-                var (userMessages, messageCount,messages) = await GetMessages(item.id, Models.ChannelType.Public, messagesOlderThan);
+                (long userMessages, long messageCount, List<Message> messages) = await GetMessages(item.id, Models.ChannelType.Public, messagesOlderThan);
 
                 publicChannels.Add(new Models.Channel(
                     name: item.name,
@@ -88,7 +96,7 @@ namespace RSlackCleaner.Services.Slack
                     channelType: Models.ChannelType.Public,
                     isChecked: false,
                     messages: messages,
-                    userMessages: userMessages,
+                    userMessagesCount: userMessages,
                     messagesCount: messageCount
                 ));
             }
@@ -100,7 +108,7 @@ namespace RSlackCleaner.Services.Slack
             List<Models.Channel> channels = new List<Models.Channel>();
             foreach (Channel item in groups)
             {
-                var (userMessages, messageCount,messages) = await GetMessages(item.id, Models.ChannelType.Private, messagesOlderThan);
+                (long userMessages, long messageCount, List<Message> messages) = await GetMessages(item.id, Models.ChannelType.Private, messagesOlderThan);
 
                 channels.Add(new Models.Channel(
                     name: item.name,
@@ -108,21 +116,19 @@ namespace RSlackCleaner.Services.Slack
                     channelType: Models.ChannelType.Private,
                     isChecked: false,
                     messages: messages,
-                    userMessages: userMessages,
+                    userMessagesCount: userMessages,
                     messagesCount: messageCount
                 ));
             }
             return channels;
         }
 
-        
+
         public async Task DeleteMessagesFromChannel(Models.Channel[] channels, DateTime messagesOlderThan)
         {
-            string tokenUserId = await GetTokenUserId();
-
-            foreach (var channel in channels)
+            foreach (Models.Channel channel in channels)
             {
-                await DeleteMessages(channel.ChannelId, channel.Messages.Where(x=>x.ts<messagesOlderThan).ToList());
+                await DeleteMessages(channel.ChannelId, channel.Messages.Where(x => x.ts < messagesOlderThan).ToList());
             }
         }
 
@@ -133,22 +139,19 @@ namespace RSlackCleaner.Services.Slack
                 return;
             }
             int deleteInterval = 300;
-            string tokenUserId = await GetTokenUserId();
 
             foreach (Message item in messageHistories)
             {
-                if (string.IsNullOrEmpty(item.user) || item.user.Equals(tokenUserId))
+                if (string.IsNullOrEmpty(item.user) || item.user.Equals(UserIdOfToken))
                 {
                     DeletedResponse response;
                     do
                     {
                         response = await SlackClient.DeleteMessageAsync(channelId, item.ts);
                         Thread.Sleep(deleteInterval);
-                    } while ((response != null && !response.ok) && response.error.Equals("ratelimited"));
-                    if (MessageDeleted != null)
-                    {
-                        MessageDeleted.Invoke(1);
-                    }
+                    } while ((response != null && !response.ok) && response.error.Equals(Config.SlackRateLimitError));
+
+                    MessageDeleted?.Invoke();
                 }
             }
         }
@@ -156,7 +159,6 @@ namespace RSlackCleaner.Services.Slack
 
         private async Task<(long UserMessageCount, long AllMessageCount, List<Message> messages)> GetMessages(string channelId, Models.ChannelType channelType, DateTime messagesOlderThan)
         {
-            string tokenUserId = await GetTokenUserId();
             long allMessageCount = 0;
             long userMessageCount = 0;
             bool isMoreMessages = true;
@@ -179,8 +181,12 @@ namespace RSlackCleaner.Services.Slack
 
                 if (slackMessages != null && slackMessages.messages != null)
                 {
-                    allMessageCount += slackMessages.messages.Count(x => string.IsNullOrEmpty(x.subtype) || !x.subtype.Equals("group_join"));
-                    userMessageCount += slackMessages.messages.Count(x => (string.IsNullOrEmpty(tokenUserId) || string.IsNullOrEmpty(x.user) || x.user.Equals(tokenUserId)) && (string.IsNullOrEmpty(x.subtype) || !x.subtype.Equals("group_join")));
+                    allMessageCount += slackMessages.messages.Count(x => string.IsNullOrEmpty(x.subtype) || !x.subtype.Equals(Config.SlackGroupJoinMessageType));
+                    userMessageCount += slackMessages.messages
+                        .Count(x => 
+                            (string.IsNullOrEmpty(UserIdOfToken) || string.IsNullOrEmpty(x.user) || x.user.Equals(UserIdOfToken)) 
+                            && (string.IsNullOrEmpty(x.subtype) || !x.subtype.Equals(Config.SlackGroupJoinMessageType))
+                        );
                     messages.AddRange(slackMessages.messages);
                 }
 
@@ -194,7 +200,7 @@ namespace RSlackCleaner.Services.Slack
                 }
             }
 
-            return (userMessageCount, allMessageCount,messages);
+            return (userMessageCount, allMessageCount, messages);
         }
     }
 }

@@ -12,6 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\RSlackCleaner.Resources\RSlackCleaner.Resources.csproj" />
     <ProjectReference Include="..\RSlackCleaner.Services\RSlackCleaner.Services.csproj" />
   </ItemGroup>
 

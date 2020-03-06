@@ -7,9 +7,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
@@ -29,6 +26,15 @@ namespace RSlackCleaner.Areas.Main
         private bool isDeleteMessagesEnabled = false;
         public bool IsDeleteMessagesEnabled { get => isDeleteMessagesEnabled; set => SetProperty(ref isDeleteMessagesEnabled, value); }
 
+        public long PublicChannelsUserMessagesCount { get => PublicChannels?.Sum(x => x.UserMessagesCount) ?? 0; }
+        public long PublicChannelsMessagesCount { get => PublicChannels?.Sum(x => x.MessagesCount) ?? 0; }
+        public long PrivateChannelsUserMessagesCount { get => PrivateChannels?.Sum(x => x.UserMessagesCount) ?? 0; }
+        public long PrivateChannelsMessagesCount { get => PrivateChannels?.Sum(x => x.MessagesCount) ?? 0; }
+        public long PrivateMessagesUserMessagesCount { get => DirectMessageChannels?.Sum(x => x.UserMessagesCount) ?? 0; }
+        public long PrivateMessagesMessagesCount { get => DirectMessageChannels?.Sum(x => x.MessagesCount) ?? 0; }
+
+        public bool CloseApplicationAfterDeleteAll { get => closeApplicationAfterDeleteAll; set =>SetProperty(ref closeApplicationAfterDeleteAll, value); }
+        public bool ShutDownPcAfterDeleteAll { get => shutDownPcAfterDeleteAll; set => SetProperty(ref shutDownPcAfterDeleteAll, value); }
         private List<Channel> channels;
 
         public List<Channel> Channels
@@ -37,9 +43,18 @@ namespace RSlackCleaner.Areas.Main
             set
             {
                 SetProperty(ref channels, value);
+
                 RaisePropertyChanged(nameof(PrivateChannels));
+                RaisePropertyChanged(nameof(PrivateChannelsUserMessagesCount));
+                RaisePropertyChanged(nameof(PrivateChannelsMessagesCount));
+
                 RaisePropertyChanged(nameof(PublicChannels));
+                RaisePropertyChanged(nameof(PublicChannelsUserMessagesCount));
+                RaisePropertyChanged(nameof(PublicChannelsMessagesCount));
+
                 RaisePropertyChanged(nameof(DirectMessageChannels));
+                RaisePropertyChanged(nameof(PrivateMessagesUserMessagesCount));
+                RaisePropertyChanged(nameof(PrivateMessagesMessagesCount));
             }
         }
 
@@ -55,6 +70,9 @@ namespace RSlackCleaner.Areas.Main
 
 
         private Visibility progressBarVisibility = Visibility.Hidden;
+        private bool shutDownPcAfterDeleteAll = false;
+        private bool closeApplicationAfterDeleteAll = true;
+
         public Visibility ProgressBarVisibility { get => progressBarVisibility; set => SetProperty(ref progressBarVisibility, value); }
 
         public DelegateCommand SearchCmd { get; set; }
@@ -89,14 +107,33 @@ namespace RSlackCleaner.Areas.Main
             SetAppStatus(true);
             ProgressBarVisibility = Visibility.Visible;
             MessagesDeleted = 0;
-            MessagesCount = Channels.Where(x => x.IsChecked).Sum(x => x.UserMessages);
+            MessagesCount = Channels.Where(x => x.IsChecked).Sum(x => x.UserMessagesCount);
 
-            SlackService slackService = new SlackService(UserToken);
+            SlackService slackService = new SlackService(UserToken)
+            {
+                MessageDeleted = new Action(MessagesDeletedExe)
+            };
             await slackService.DeleteMessagesFromChannel(Channels.Where(x => x.IsChecked).ToArray(), SelectedDate);
 
+            if (ShutDownPcAfterDeleteAll)
+            {
+                Process.Start("shutdown.exe", "-s -t 05");
+                App.Current.Shutdown();
+            }
+            else if (CloseApplicationAfterDeleteAll)
+            {
+                App.Current.Shutdown();
+            }
+
+            ProgressBarVisibility = Visibility.Hidden;
             SetAppStatus(false);
 
             SearchMessagesOnChannels();
+        }
+
+        private void MessagesDeletedExe()
+        {
+            Application.Current.Dispatcher.Invoke(DispatcherPriority.Background, (Action)(() => MessagesDeleted++));
         }
 
         public async void SearchMessagesOnChannels()

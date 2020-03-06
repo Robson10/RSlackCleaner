@@ -1,16 +1,16 @@
 ﻿using Prism.Commands;
 using Prism.Mvvm;
+using RSlackCleaner.Resources.Configuration;
+using RSlackCleaner.Resources.Localization;
 using RSlackCleaner.Services.Slack;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Windows;
 
 namespace RSlackCleaner.Areas.Token
 {
-    public class TokenVM:BindableBase
+    public class TokenVM : BindableBase
     {
         private string userToken;
         public string UserToken { get => userToken; set => SetProperty(ref userToken, value); }
@@ -29,11 +29,11 @@ namespace RSlackCleaner.Areas.Token
         {
             if (string.IsNullOrEmpty(UserToken))
             {
-                MessageBox.Show("Token nie został wprowadzony","", MessageBoxButton.OK);
+                MessageBox.Show(res.msgEmptyToken, res.TitleInformation, MessageBoxButton.OK);
             }
             else if (!(await SlackService.VerifyToken(UserToken)))
             {
-                MessageBox.Show("Podany token jest nieprawidłowy.", "", MessageBoxButton.OK);
+                MessageBox.Show(res.msgInvalidToken, res.TitleInformation, MessageBoxButton.OK);
             }
             else
             {
@@ -46,31 +46,33 @@ namespace RSlackCleaner.Areas.Token
             CloseWindow(window, false);
         }
 
-        private void CloseWindow(Window window,bool dialogResult)
+        private void CloseWindow(Window window, bool dialogResult)
         {
-            window.DialogResult = dialogResult;
-            window.Close();
+            try
+            {
+                window.DialogResult = dialogResult;
+                window.Close();
+            }
+            catch (InvalidOperationException) { }
         }
 
         private void GenerateToken()
         {
-            string url = "https://api.slack.com/legacy/custom-integrations/legacy-tokens";
-
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+                Process.Start(new ProcessStartInfo(Config.TokenWebPage) { UseShellExecute = true });
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
-                Process.Start("xdg-open", url);
+                Process.Start(Config.LinuxCmdOpen, Config.TokenWebPage);
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                Process.Start("open", url); 
+                Process.Start(Config.OSXCmdOpen, Config.TokenWebPage);
             }
             else
             {
-                MessageBox.Show("Nie udało się uruchomić następującego adresu w przeglądarce:" + Environment.NewLine + url, "", MessageBoxButton.OK);
+                MessageBox.Show(string.Format(res.msgCannotOpenWebUrl, Config.TokenWebPage), res.TitleError, MessageBoxButton.OK);
             }
         }
     }

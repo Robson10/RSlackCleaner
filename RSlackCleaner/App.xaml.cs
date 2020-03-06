@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Configuration;
-using System.Data;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using RSlackCleaner.Resources.Localization;
+using System.Globalization;
+using System.Threading;
 using System.Windows;
 
 namespace RSlackCleaner
@@ -13,5 +10,17 @@ namespace RSlackCleaner
     /// </summary>
     public partial class App : Application
     {
+        protected override void OnStartup(StartupEventArgs e)
+        {
+            base.OnStartup(e);
+            SetResourceLanguage();
+        }
+
+        private void SetResourceLanguage()
+        {
+            res.Culture = CultureInfo.CurrentCulture;
+            Thread.CurrentThread.CurrentCulture = CultureInfo.CurrentCulture;
+            Thread.CurrentThread.CurrentUICulture = CultureInfo.CurrentCulture;
+        }
     }
 }
