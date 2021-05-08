@@ -20,7 +20,7 @@ namespace RSlackCleaner.Services.Slack
 
             SlackClient = new SlackTaskClient(token);
 
-            Task<string> task = Task.Run(GetTokenUserId);
+            Task<string> task = Task.Run(GetUserIdBasedOnToken);
             task.Wait();
             UserIdOfToken = task.Result;
         }
@@ -33,7 +33,7 @@ namespace RSlackCleaner.Services.Slack
             return response.ok;
         }
 
-        private async Task<string> GetTokenUserId()
+        private async Task<string> GetUserIdBasedOnToken()
         {
             AuthTestResponse auth = await SlackClient.TestAuthAsync();
             return auth.user_id;
@@ -57,6 +57,7 @@ namespace RSlackCleaner.Services.Slack
             ChannelList.AddRange(await GetPrivateChannels(res.groups, messagesOlderThan));
             ChannelList.AddRange(await GetPublicChannels(res.channels, messagesOlderThan));
             ChannelList.AddRange(await GetDirectMessageChannels(res.ims, res.users, messagesOlderThan));
+
             return ChannelList;
         }
 
@@ -123,7 +124,6 @@ namespace RSlackCleaner.Services.Slack
             return channels;
         }
 
-
         public async Task DeleteMessagesFromChannel(Models.Channel[] channels, DateTime messagesOlderThan)
         {
             foreach (Models.Channel channel in channels)
@@ -147,7 +147,14 @@ namespace RSlackCleaner.Services.Slack
                     DeletedResponse response;
                     do
                     {
-                        response = await SlackClient.DeleteMessageAsync(channelId, item.ts);
+                        try
+                        {
+                            response = await SlackClient.DeleteMessageAsync(channelId, item.ts);
+                        }
+                        catch(NullReferenceException)
+                        {
+                            response = new DeletedResponse() { ok = true };
+                        }
                         Thread.Sleep(deleteInterval);
                     } while ((response != null && !response.ok) && response.error.Equals(Config.SlackRateLimitError));
 
@@ -169,17 +176,17 @@ namespace RSlackCleaner.Services.Slack
                 switch (channelType)
                 {
                     case Models.ChannelType.Public:
-                        slackMessages = await SlackClient.GetChannelHistoryAsync(new Channel() { id = channelId }, messagesOlderThan, new DateTime(2000, 01, 01), 1000);
+                        slackMessages = await SlackClient.GetConversationsHistoryAsync(new Channel() { id = channelId }, messagesOlderThan, new DateTime(2000, 01, 01), 1000);
                         break;
                     case Models.ChannelType.Private:
-                        slackMessages = await SlackClient.GetGroupHistoryAsync(new Channel() { id = channelId }, messagesOlderThan, new DateTime(2000, 01, 01), 1000);
+                        slackMessages = await SlackClient.GetConversationsHistoryAsync(new Channel() { id = channelId }, messagesOlderThan, new DateTime(2000, 01, 01), 1000);
                         break;
                     case Models.ChannelType.DirectMessage:
-                        slackMessages = await SlackClient.GetDirectMessageHistoryAsync(new DirectMessageConversation() { id = channelId }, messagesOlderThan, new DateTime(2000, 01, 01), 1000);
+                        slackMessages = await SlackClient.GetConversationsHistoryAsync(new Channel() { id = channelId }, messagesOlderThan, new DateTime(2000, 01, 01), 1000);
                         break;
                 }
 
-                if (slackMessages != null && slackMessages.messages != null)
+                if (slackMessages?.messages != null)
                 {
                     allMessageCount += slackMessages.messages.Count(x => string.IsNullOrEmpty(x.subtype) || !x.subtype.Equals(Config.SlackGroupJoinMessageType));
                     userMessageCount += slackMessages.messages
@@ -190,7 +197,7 @@ namespace RSlackCleaner.Services.Slack
                     messages.AddRange(slackMessages.messages);
                 }
 
-                if (slackMessages.messages.Count() >= 1000)
+                if (slackMessages?.messages?.Count() >= 1000)
                 {
                     messagesOlderThan = slackMessages.messages.Min(x => x.ts);
                 }
